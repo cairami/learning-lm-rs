@@ -71,19 +71,43 @@ pub fn masked_softmax(y: &mut Tensor<f32>) {
 }
 
 pub fn rms_norm(y: &mut Tensor<f32>, x: &Tensor<f32>, w: &Tensor<f32>, epsilon: f32) {
-    todo!("实现 rms_norm，计算前做一些必要的检查会帮助你后续调试")
+    assert_eq!(y.shape(), x.shape());
+    
+    let n = x.shape()[x.shape().len() - 1];
+    assert_eq!(w.size(), n);
+
+    let batch = x.size() / n;
+    let x_data = x.data();
+    let w_data = w.data();
+    let y_data = unsafe {y.data_mut() };
+
+    for i in 0..batch {
+        let mut sum = 0f32;
+        for j in 0..n {
+            sum = sum + x_data[i*n+j].powi(2);
+        }
+        let rms = (sum / n as f32 + epsilon).sqrt();
+
+        for j in 0..n {
+            let index = i*n+j;
+            y_data[index] = w_data[j] * x_data[index] / rms;
+        }
+    }
 }
 
 // y = silu(x) * y
 // hint: this is an element-wise operation
 pub fn swiglu(y: &mut Tensor<f32>, x: &Tensor<f32>) {
-    // let len = y.size();
-    // assert!(len == x.size());
+    let len = y.size();
+    assert_eq!(len, x.size());
 
-    // let _y = unsafe { y.data_mut() };
-    // let _x = x.data();
+    let y_data = unsafe { y.data_mut() };
+    let x_data = x.data();
 
-    todo!("实现 silu，这里给了一些前期准备工作的提示，你可以参考")
+    for i in 0..len {
+        let x_sigmoid = 1.0 /(1.0 + (-x_data[i]).exp());
+        y_data[i] = x_sigmoid * x_data[i] * y_data[i];
+    }
 }
 
 // C = beta * C + alpha * A @ B^T
